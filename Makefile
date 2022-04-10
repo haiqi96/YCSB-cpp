@@ -10,11 +10,11 @@
 #---------------------build config-------------------------
 
 DEBUG_BUILD ?= 0
-EXTRA_CXXFLAGS ?=
-EXTRA_LDFLAGS ?=
+EXTRA_CXXFLAGS ?= -I/example/rocksdb/include
+EXTRA_LDFLAGS ?= -L/example/rocksdb -ldl -lz -lsnappy -lzstd -lbz2 -llz4
 
 BIND_LEVELDB ?= 0
-BIND_ROCKSDB ?= 0
+BIND_ROCKSDB ?= 1
 BIND_LMDB ?= 0
 
 #----------------------------------------------------------
