@@ -19,6 +19,19 @@
 #include <rocksdb/status.h>
 #include <rocksdb/utilities/options_util.h>
 #include <rocksdb/write_batch.h>
+#include <brpc/channel.h>
+#include <butil/logging.h>
+#include "../echo.pb.h"
+#include "../OPcode.h"
+
+DEFINE_string(attachment, "", "Carry this along with requests");
+DEFINE_string(protocol, "baidu_std", "Protocol type. Defined in src/brpc/options.proto");
+DEFINE_string(connection_type, "", "Connection type. Available values: single, pooled, short");
+DEFINE_string(server, "0.0.0.0:8000", "IP Address of server");
+DEFINE_string(load_balancer, "", "The algorithm for load balancing");
+DEFINE_int32(timeout_ms, 100, "RPC timeout in milliseconds");
+DEFINE_int32(max_retry, 3, "Max retries(not including the first RPC)"); 
+DEFINE_int32(interval_ms, 1000, "Milliseconds between consecutive requests");
 
 namespace {
   const std::string PROP_NAME = "rocksdb.dbname";
@@ -205,6 +218,20 @@ void RocksdbDB::Init() {
   } else {
     s = rocksdb::DB::Open(opt, db_path, cf_descs, &cf_handles, &db_);
   }
+
+  brpc::ChannelOptions options;
+  options.protocol = FLAGS_protocol;
+  options.connection_type = FLAGS_connection_type;
+  options.timeout_ms = FLAGS_timeout_ms/*milliseconds*/;
+  options.max_retry = FLAGS_max_retry;
+  if (channel_.Init(FLAGS_server.c_str(), FLAGS_load_balancer.c_str(), &options) != 0) {
+      throw utils::Exception(std::string("Fail to initialize channel"));
+  }
+  // Normally, you should not call a Channel directly, but instead construct
+  // a stub Service wrapping it. stub can be shared by all threads as well.
+  example::EchoService_Stub * stub_ptr = new example::EchoService_Stub(&channel_);
+  stub_ = stub_ptr;
+
   if (!s.ok()) {
     throw utils::Exception(std::string("RocksDB Open: ") + s.ToString());
   }
@@ -412,6 +439,24 @@ DB::Status RocksdbDB::ReadSingle(const std::string &table, const std::string &ke
     DeserializeRow(result, data);
     assert(result.size() == static_cast<size_t>(fieldcount_));
   }
+
+  example::EchoRequest request;
+  example::EchoResponse response;
+  brpc::Controller cntl;
+
+  request.set_op(OP_READ);
+  request.set_key(key);
+  cntl.request_attachment().append(FLAGS_attachment);
+  stub_->Echo(&cntl, &request, &response, NULL);
+  if (!cntl.Failed()) {
+      LOG(INFO) << "Received response from " << cntl.remote_side()
+          << " to " << cntl.local_side()
+          << ": " << response.message() << " (attached="
+          << cntl.response_attachment() << ")"
+          << " latency=" << cntl.latency_us() << "us";
+  } else {
+      LOG(WARNING) << cntl.ErrorText();
+  }
   return kOK;
 }
 
@@ -492,6 +537,25 @@ DB::Status RocksdbDB::InsertSingle(const std::string &table, const std::string &
   rocksdb::Status s = db_->Put(wopt, key, data);
   if (!s.ok()) {
     throw utils::Exception(std::string("RocksDB Put: ") + s.ToString());
+  }
+
+  example::EchoRequest request;
+  example::EchoResponse response;
+  brpc::Controller cntl;
+
+  request.set_op(OP_WRITE);
+  request.set_key(key);
+  request.set_value(data);
+  stub_->Echo(&cntl, &request, &response, NULL);
+  if (!cntl.Failed()) {
+    std::string result = response.message();
+    LOG(INFO) << "Received response from " << cntl.remote_side()
+    << " to " << cntl.local_side()
+    << ": " << response.message() << " (attached="
+    << cntl.response_attachment() << ")"
+    << " latency=" << cntl.latency_us() << "us";
+  } else {
+    LOG(WARNING) << cntl.ErrorText();
   }
   return kOK;
 }

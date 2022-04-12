@@ -74,13 +74,13 @@ OBJECTS += $(SOURCES:.cc=.o)
 DEPS += $(SOURCES:.cc=.d)
 EXEC = ycsb
 
-all: $(EXEC)
+all: $(PROTO_OBJS) $(EXEC)
 
 %.pb.cc %.pb.h:%.proto
 	@echo "> Generating $@"
 	@$(PROTOC) --cpp_out=. --proto_path=. $(PROTOC_EXTRA_ARGS) $<
 
-$(EXEC): $(OBJECTS) $(PROTO_OBJS) 
+$(EXEC): $(PROTO_OBJS) $(OBJECTS)
 	@echo "> Linking $@"
 	@$(CXX) $(CXXFLAGS) $(LIBPATHS) $(LINK_OPTIONS) $(LDFLAGS) -o $@
 
