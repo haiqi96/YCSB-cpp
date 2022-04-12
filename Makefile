@@ -17,6 +17,32 @@ BIND_LEVELDB ?= 0
 BIND_ROCKSDB ?= 1
 BIND_LMDB ?= 0
 
+NEED_GPERFTOOLS=0
+CXXFLAGS+=$(CPPFLAGS) -std=c++0x -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer
+BRPC_PATH=/home/haiqi/incubator-brpc
+include $(BRPC_PATH)/config.mk
+
+HDRS+=$(BRPC_PATH)/output/include
+LIBS+=$(BRPC_PATH)/output/lib
+
+HDRPATHS=$(addprefix -I, $(HDRS))
+LIBPATHS=$(addprefix -L, $(LIBS))
+COMMA=,
+SOPATHS=$(addprefix -Wl$(COMMA)-rpath$(COMMA), $(LIBS))
+
+CLIENT_SOURCES = client.cpp
+SERVER_SOURCES = server.cpp
+PROTOS = $(wildcard *.proto)
+
+PROTO_OBJS = $(PROTOS:.proto=.pb.o)
+PROTO_GENS = $(PROTOS:.proto=.pb.h) $(PROTOS:.proto=.pb.cc)
+CLIENT_OBJS = $(addsuffix .o, $(basename $(CLIENT_SOURCES))) 
+SERVER_OBJS = $(addsuffix .o, $(basename $(SERVER_SOURCES))) 
+
+STATIC_LINKINGS += -lbrpc
+LINK_OPTIONS_SO = -Xlinker "-(" $^ -Xlinker "-)" $(STATIC_LINKINGS) $(DYNAMIC_LINKINGS)
+LINK_OPTIONS = -Xlinker "-(" $^  -Wl,-Bstatic $(STATIC_LINKINGS) -Wl,-Bdynamic -Xlinker "-)" $(DYNAMIC_LINKINGS)
+
 #----------------------------------------------------------
 
 ifeq ($(DEBUG_BUILD), 1)
@@ -50,16 +76,20 @@ EXEC = ycsb
 
 all: $(EXEC)
 
-$(EXEC): $(OBJECTS)
-	@$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) -o $@
-	@echo "  LD      " $@
+%.pb.cc %.pb.h:%.proto
+	@echo "> Generating $@"
+	@$(PROTOC) --cpp_out=. --proto_path=. $(PROTOC_EXTRA_ARGS) $<
+
+$(EXEC): $(OBJECTS) $(PROTO_OBJS) 
+	@echo "> Linking $@"
+	@$(CXX) $(CXXFLAGS) $(LIBPATHS) $(LINK_OPTIONS) $(LDFLAGS) -o $@
 
 .cc.o:
-	@$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c -o $@ $<
+	@$(CXX) $(CXXFLAGS) $(HDRPATHS) -c -o $@ $<
 	@echo "  CC      " $@
 
 %.d : %.cc
-	@$(CXX) $(CXXFLAGS) $(CPPFLAGS) -MM -MT '$(<:.cc=.o)' -o $@ $<
+	@$(CXX) $(CXXFLAGS) $(HDRPATHS) -MM -MT '$(<:.cc=.o)' -o $@ $<
 
 ifneq ($(MAKECMDGOALS),clean)
 -include $(DEPS)
@@ -67,6 +97,6 @@ endif
 
 clean:
 	find . -name "*.[od]" -delete
-	$(RM) $(EXEC)
+	$(RM) $(EXEC) $(PROTO_OBJS)
 
 .PHONY: clean
