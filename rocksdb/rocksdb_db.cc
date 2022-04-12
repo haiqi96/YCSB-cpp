@@ -260,12 +260,14 @@ void RocksdbDB::GetOptions(const utils::Properties &props, rocksdb::Options *opt
   // }
 
   const std::string options_file = props.GetProperty(PROP_OPTIONS_FILE, PROP_OPTIONS_FILE_DEFAULT);
+  printf("option file is %s\n", options_file.c_str());
   if (options_file != "") {
     rocksdb::Status s = rocksdb::LoadOptionsFromFile(options_file, env, opt, cf_descs);
     if (!s.ok()) {
       throw utils::Exception(std::string("RocksDB LoadOptionsFromFile: ") + s.ToString());
     }
   } else {
+    printf("use default option file\n");
     const std::string compression_type = props.GetProperty(PROP_COMPRESSION,
                                                            PROP_COMPRESSION_DEFAULT);
     if (compression_type == "no") {
@@ -427,18 +429,6 @@ DB::Status RocksdbDB::ReadSingle(const std::string &table, const std::string &ke
                                  const std::vector<std::string> *fields,
                                  std::vector<Field> &result) {
   std::string data;
-  rocksdb::Status s = db_->Get(rocksdb::ReadOptions(), key, &data);
-  if (s.IsNotFound()) {
-    return kNotFound;
-  } else if (!s.ok()) {
-    throw utils::Exception(std::string("RocksDB Get: ") + s.ToString());
-  }
-  if (fields != nullptr) {
-    DeserializeRowFilter(result, data, *fields);
-  } else {
-    DeserializeRow(result, data);
-    assert(result.size() == static_cast<size_t>(fieldcount_));
-  }
 
   example::EchoRequest request;
   example::EchoResponse response;
@@ -449,11 +439,24 @@ DB::Status RocksdbDB::ReadSingle(const std::string &table, const std::string &ke
   cntl.request_attachment().append(FLAGS_attachment);
   stub_->Echo(&cntl, &request, &response, NULL);
   if (!cntl.Failed()) {
-      LOG(INFO) << "Received response from " << cntl.remote_side()
-          << " to " << cntl.local_side()
-          << ": " << response.value() << " (attached="
-          << cntl.response_attachment() << ")"
-          << " latency=" << cntl.latency_us() << "us";
+    STATUS_T status = response.status();
+    if(STATUS_KOK == status) {
+      data = response.value();
+      // LOG(INFO) << "Received response from " << cntl.remote_side()
+      //     << " to " << cntl.local_side()
+      //     << ": " << response.value()
+      //     << " latency=" << cntl.latency_us() << "us";
+      if (fields != nullptr) {
+        DeserializeRowFilter(result, data, *fields);
+      } else {
+        DeserializeRow(result, data);
+        assert(result.size() == static_cast<size_t>(fieldcount_));
+      }
+    } else if (STATUS_KNOTFOUND == status) {
+      return kNotFound;
+    } else {
+      throw utils::Exception(std::string("RocksDB Get: KError"));
+    }
   } else {
       LOG(WARNING) << cntl.ErrorText();
   }
@@ -533,27 +536,22 @@ DB::Status RocksdbDB::InsertSingle(const std::string &table, const std::string &
                                    std::vector<Field> &values) {
   std::string data;
   SerializeRow(values, data);
-  rocksdb::WriteOptions wopt;
-  rocksdb::Status s = db_->Put(wopt, key, data);
-  if (!s.ok()) {
-    throw utils::Exception(std::string("RocksDB Put: ") + s.ToString());
-  }
-
   example::EchoRequest request;
   example::EchoResponse response;
   brpc::Controller cntl;
-
   request.set_op(OP_WRITE);
   request.set_key(key);
   request.set_value(data);
   stub_->Echo(&cntl, &request, &response, NULL);
   if (!cntl.Failed()) {
+    STATUS_T status = response.status();
+    if (STATUS_KOK != status) {
+      throw utils::Exception(std::string("RocksDB Put: Failed"));
+    }
     std::string result = response.value();
-    LOG(INFO) << "Received response from " << cntl.remote_side()
-    << " to " << cntl.local_side()
-    << ": " << response.value() << " (attached="
-    << cntl.response_attachment() << ")"
-    << " latency=" << cntl.latency_us() << "us";
+    // LOG(INFO) << "Received response from " << cntl.remote_side()
+    // << " to " << cntl.local_side()
+    // << " latency=" << cntl.latency_us() << "us";
   } else {
     LOG(WARNING) << cntl.ErrorText();
   }

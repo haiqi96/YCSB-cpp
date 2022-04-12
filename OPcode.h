@@ -11,5 +11,6 @@
 #define STATUS_T unsigned
 #define STATUS_KOK 0
 #define STATUS_KNOTFOUND 1
+#define STATUS_KERROR 2
 
 #endif /* MY_CLASS_H */

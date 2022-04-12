@@ -42,6 +42,8 @@ PROTO_GENS = $(PROTOS:.proto=.pb.h) $(PROTOS:.proto=.pb.cc)
 CLIENT_OBJS = $(addsuffix .o, $(basename $(CLIENT_SOURCES))) 
 SERVER_OBJS = $(addsuffix .o, $(basename $(SERVER_SOURCES))) 
 
+LDFLAGS = -lrocksdb
+
 ifeq ($(SYSTEM),Darwin)
  ifneq ("$(LINK_SO)", "")
 	STATIC_LINKINGS += -lbrpc
@@ -70,7 +72,7 @@ echo_server: $(SERVER_OBJS) $(PROTO_OBJS)
 ifneq ("$(LINK_SO)", "")
 	$(CXX) $(LIBPATHS) $(SOPATHS) $(LINK_OPTIONS_SO) -o $@
 else
-	$(CXX) $(LIBPATHS) $(LINK_OPTIONS) -o $@
+	$(CXX) $(LIBPATHS) $(LINK_OPTIONS) $(LDFLAGS) -o $@
 endif
 
 %.pb.cc %.pb.h:%.proto
