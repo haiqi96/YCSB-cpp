@@ -8,4 +8,8 @@
 #define OP_DELETE 2
 #define OP_MODIFY 3
 
+#define STATUS_T unsigned
+#define STATUS_KOK 0
+#define STATUS_KNOTFOUND 1
+
 #endif /* MY_CLASS_H */

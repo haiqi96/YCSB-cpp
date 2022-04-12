@@ -451,7 +451,7 @@ DB::Status RocksdbDB::ReadSingle(const std::string &table, const std::string &ke
   if (!cntl.Failed()) {
       LOG(INFO) << "Received response from " << cntl.remote_side()
           << " to " << cntl.local_side()
-          << ": " << response.message() << " (attached="
+          << ": " << response.value() << " (attached="
           << cntl.response_attachment() << ")"
           << " latency=" << cntl.latency_us() << "us";
   } else {
@@ -548,10 +548,10 @@ DB::Status RocksdbDB::InsertSingle(const std::string &table, const std::string &
   request.set_value(data);
   stub_->Echo(&cntl, &request, &response, NULL);
   if (!cntl.Failed()) {
-    std::string result = response.message();
+    std::string result = response.value();
     LOG(INFO) << "Received response from " << cntl.remote_side()
     << " to " << cntl.local_side()
-    << ": " << response.message() << " (attached="
+    << ": " << response.value() << " (attached="
     << cntl.response_attachment() << ")"
     << " latency=" << cntl.latency_us() << "us";
   } else {

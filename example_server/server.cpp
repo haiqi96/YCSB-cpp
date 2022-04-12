@@ -65,7 +65,8 @@ public:
         OPCODE_T opcode = request->op();
 
         // Fill response.
-        response->set_message(request->key());
+        response->set_value(request->key());
+        response->set_status(STATUS_KOK);
 
         // You can compress the response by setting Controller, but be aware
         // that compression may be costly, evaluate before turning on.
