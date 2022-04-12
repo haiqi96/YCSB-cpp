@@ -436,6 +436,7 @@ DB::Status RocksdbDB::ReadSingle(const std::string &table, const std::string &ke
 
   request.set_op(OP_READ);
   request.set_key(key);
+  request.set_value("");
   cntl.request_attachment().append(FLAGS_attachment);
   stub_->Echo(&cntl, &request, &response, NULL);
   if (!cntl.Failed()) {
@@ -554,6 +555,7 @@ DB::Status RocksdbDB::InsertSingle(const std::string &table, const std::string &
     // << " latency=" << cntl.latency_us() << "us";
   } else {
     LOG(WARNING) << cntl.ErrorText();
+    throw utils::Exception(std::string("RocksDB Put: Failed"));
   }
   return kOK;
 }
