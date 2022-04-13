@@ -29,7 +29,7 @@ DEFINE_string(protocol, "baidu_std", "Protocol type. Defined in src/brpc/options
 DEFINE_string(connection_type, "", "Connection type. Available values: single, pooled, short");
 DEFINE_string(server, "0.0.0.0:8000", "IP Address of server");
 DEFINE_string(load_balancer, "", "The algorithm for load balancing");
-DEFINE_int32(timeout_ms, 100, "RPC timeout in milliseconds");
+DEFINE_int32(timeout_ms, 10000, "RPC timeout in milliseconds");
 DEFINE_int32(max_retry, 3, "Max retries(not including the first RPC)"); 
 DEFINE_int32(interval_ms, 1000, "Milliseconds between consecutive requests");
 
@@ -119,6 +119,9 @@ namespace ycsbc {
 rocksdb::DB *RocksdbDB::db_ = nullptr;
 int RocksdbDB::ref_cnt_ = 0;
 std::mutex RocksdbDB::mu_;
+
+brpc::Channel RocksdbDB::channel_;
+example::EchoService_Stub* RocksdbDB::stub_ = nullptr;
 
 void RocksdbDB::Init() {
 // merge operator disabled by default due to link error

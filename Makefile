@@ -18,7 +18,9 @@ BIND_ROCKSDB ?= 1
 BIND_LMDB ?= 0
 
 NEED_GPERFTOOLS=0
-CXXFLAGS+=$(CPPFLAGS) -std=c++0x -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer
+#CXXFLAGS+=$(CPPFLAGS) -std=c++0x -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer
+CXXFLAGS+=$(CPPFLAGS) -std=c++0x -DDEBUG -g -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer
+
 BRPC_PATH=/home/haiqi/incubator-brpc
 include $(BRPC_PATH)/config.mk
 

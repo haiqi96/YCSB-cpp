@@ -97,8 +97,8 @@ class RocksdbDB : public DB {
   static rocksdb::DB *db_;
   static int ref_cnt_;
   static std::mutex mu_;
-  brpc::Channel channel_;
-  example::EchoService_Stub* stub_;
+  static brpc::Channel channel_;
+  static example::EchoService_Stub* stub_;
 };
 
 DB *NewRocksdbDB();
