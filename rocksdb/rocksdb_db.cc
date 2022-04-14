@@ -493,11 +493,15 @@ DB::Status RocksdbDB::UpdateSingle(const std::string &table, const std::string &
                                    std::vector<Field> &values) {
   std::string data;
   //std::cout << "update single" << std::endl;
-  rocksdb::Status s = db_->Get(rocksdb::ReadOptions(), key, &data);
-  if (s.IsNotFound()) {
+  //rocksdb::Status s = db_->Get(rocksdb::ReadOptions(), key, &data);
+  std::vector<std::string> fields;
+  std::vector<Field> result;
+  DB::Status s = ReadSingle(table, key, &fields, result);
+
+  if (s == kNotFound) {
     return kNotFound;
-  } else if (!s.ok()) {
-    throw utils::Exception(std::string("RocksDB Get: ") + s.ToString());
+  } else if (s != kOK) {
+     throw utils::Exception(std::string("RocksDB Get: "));// + s.ToString());
   }
   std::vector<Field> current_values;
   DeserializeRow(current_values, data);
@@ -517,11 +521,12 @@ DB::Status RocksdbDB::UpdateSingle(const std::string &table, const std::string &
 
   data.clear();
   SerializeRow(current_values, data);
-  s = db_->Put(wopt, key, data);
-  if (!s.ok()) {
-    throw utils::Exception(std::string("RocksDB Put: ") + s.ToString());
+  //s = db_->Put(wopt, key, data);
+  s = InsertSingle(table, key, values);
+  if (s != kOK) {
+    throw utils::Exception(std::string("RocksDB Put: "));// + s.ToString());
   }
-  return kOK;
+  return s;
 }
 
 DB::Status RocksdbDB::MergeSingle(const std::string &table, const std::string &key,
